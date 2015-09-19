@@ -1,0 +1,110 @@
+#!/bin/bash
+
+airport=/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport
+
+lookup() {
+        egrep "$1" | awk '{print $2}'
+}
+
+airlookup() {
+        echo "$air" | lookup $1
+}
+
+okng() {
+        while read line; do
+                int=`echo $line | cut -f1 -d.`
+                if [ "$int" -eq 0 ]; then
+                        echo OK | green
+                else
+                        echo NG | red
+                fi
+        done
+}
+
+color() {
+        while read line; do
+                int=`echo $line | cut -f1 -d.`
+                if [ "$int" -gt $1 ]; then
+                        echo $line | green
+                elif [ "$int" -gt $2 ]; then
+                        echo $line | yellow
+                else
+                        echo $line | red
+                fi
+        done
+}
+
+colorlt() {
+        while read line; do
+                int=`echo $line | cut -f1 -d.`
+                if [ "$int" -lt $1 ]; then
+                        echo $line | green
+                elif [ "$int" -lt $2 ]; then
+                        echo $line | yellow
+                else
+                        echo $line | red
+                fi
+        done
+}
+
+red() {
+        xargs -I{} echo $'\e[31m{}\e[m'
+}
+
+yellow() {
+        xargs -I{} echo $'\e[33m{}\e[m'
+}
+
+green() {
+        xargs -I{} echo $'\e[32m{}\e[m'
+}
+
+address=`ifconfig en0 | lookup "inet "`
+gateway=`netstat -nr | lookup ^default`
+
+echo
+echo "======== Internet Information"
+
+echo Address: $address
+echo Gateway: $gateway
+
+# run ping
+ping_result=`ping -i0.1 -t1 -c10 $gateway`
+loss=`echo "$ping_result" | tail -n2 | head -1 | awk '{print $7}' | cut -f1 -d '%'`
+ok=`echo 100 - $loss | bc | cut -f1 -d. | color 99 59`
+ttl=`echo "$ping_result" | tail -n1 | cut -f6 -d/`
+echo Ping:   `echo $ttl | colorlt 1 9` ms \($ok% packets transmitted\)
+
+# run dig
+dig +short jp. SOA | egrep dns\.jp >/dev/null 2>&1
+dig_result=$?
+echo DNS:   `echo $? | okng`
+
+echo
+echo "======== Wireless Information"
+
+# Check bssid
+air=`$airport -I`
+
+#bssid=`echo "$air" | lookup BSSID`
+ssid=`airlookup "\sSSID"`
+bssid=`airlookup BSSID`
+channel=`airlookup channel`
+rssi=`airlookup agrCtlRSSI`
+noise=`airlookup agrCtlNoise`
+snr=`echo $rssi - $noise | bc`
+txrate=`airlookup lastTxRate`
+maxrate=`airlookup maxRate`
+mcs=`airlookup MCS`
+
+echo SSID:   `echo $ssid | green`
+echo BSSID:  `echo $bssid | green`
+echo CHANNEL: `echo $channel | color 15 15`
+
+echo
+echo "======== Radio status"
+
+echo RSSI:   `echo $rssi | color -55 -70` / `echo $noise | colorlt -80 -70`  \(S/N: `echo $snr | color 30 20`\)
+echo Rate:   `echo $txrate | color 47 28` / `echo $maxrate | color 70 36`
+echo MCS:    `echo $mcs | color 7 5`
+
