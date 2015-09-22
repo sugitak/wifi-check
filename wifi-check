@@ -23,7 +23,7 @@ okng() {
 
 color() {
         while read line; do
-                int=`echo $line | cut -f1 -d.`
+                int=`echo $line | cut -f1 -d. | perl -ne '$_ =~ /(\d+)/; print $1'`
                 if [ "$int" -gt $1 ]; then
                         echo $line | green
                 elif [ "$int" -gt $2 ]; then
@@ -97,9 +97,24 @@ txrate=`airlookup lastTxRate`
 maxrate=`airlookup maxRate`
 mcs=`airlookup MCS`
 
+if [ "$channel" -lt 15 ]; then
+        band="2.4GHz"
+elif [ "$channel" -lt 50 ]; then
+        case "$channel" in
+                34 | 38 | 42 | 46) band="5GHz(J52)";;
+                36 | 40 | 44 | 48) band="5GHz(W52)";;
+        esac
+elif [ "$channel" -lt 100 ]; then
+        band="5GHz(W53)"
+elif [ "$chsnnel" -lt 141 ]; then
+        band="5GHz(W56)"
+else
+        band="Unknown"
+fi
+
 echo SSID:   `echo $ssid | green`
 echo BSSID:  `echo $bssid | green`
-echo CHANNEL: `echo $channel | color 15 15`
+echo CHANNEL: `echo ${channel}ch\: $band | color 15 15`
 
 echo
 echo "======== Radio status"
