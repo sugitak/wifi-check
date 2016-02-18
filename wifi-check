@@ -86,7 +86,11 @@ echo "======== Wireless Information"
 # Check bssid
 air=`$airport -I`
 
-#bssid=`echo "$air" | lookup BSSID`
+if [ "$air" = "AirPort: Off" ]; then
+        echo "Wi-Fi is off." | red
+        exit 1
+fi
+
 ssid=`airlookup "\sSSID"`
 bssid=`airlookup BSSID`
 channel=`airlookup channel | cut -f1 -d,`
